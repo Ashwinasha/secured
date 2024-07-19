@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Password Reset</title>
+    <title>Password Reset Link</title>
 </head>
 <body>
-    <h1>Password Reset Code</h1>
-    <p>Dear {{ $user->name }},</p>
-    <p>We received a request to reset your password. Please use the following code to reset your password:</p>
-    <h2>{{ $code }}</h2>
-    <p>This code will expire in 60 minutes.</p>
-    <p>If you did not request a password reset, please ignore this email.</p>
-    <p>Best Regards,<br/>Your Company Name</p>
+    <h1>Password Reset Link</h1>
+    <p>Hello {{ $user->name }},</p>
+    <p>Click the link below to reset your password:</p>
+    <a href="{{ $resetLink }}">{{ $resetLink }}</a>
+    <p>This link will expire in 60 minutes.</p>
 </body>
 </html>

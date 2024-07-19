@@ -31,4 +31,25 @@ Route::get('password/reset', function () {
     return view('password_reset');
 });
 
-// routes/web.php
+Route::get('home', function () {
+    return view('home');
+});
+
+
+
+Route::post('resend-verification', [AuthController::class, 'resendVerificationCode'])->name('verification.resend');
+Route::get('forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('forgot-password.form');
+Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->name('forgot-password');
+
+
+// Route to show the password reset form
+Route::get('reset-password/{code}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
+
+// Route to handle the password reset form submission
+Route::post('reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
+
+// web.php
+Route::post('/resend-verification', [AuthController::class, 'resendVerification'])->name('verification.resend');
+
+
+

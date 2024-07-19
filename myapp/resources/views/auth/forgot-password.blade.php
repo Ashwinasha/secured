@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login</title>
+    <title>Forgot Password</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
@@ -22,7 +22,7 @@
 </head>
 <body>
     <div class="container">
-        <h2>Login</h2>
+        <h2>Forgot Password</h2>
         @if (session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
@@ -35,20 +35,13 @@
                 </ul>
             </div>
         @endif
-        <form action="{{ route('login') }}" method="POST">
+        <form action="{{ route('forgot-password') }}" method="POST">
             @csrf
             <div class="form-group">
                 <label for="email">Email:</label>
                 <input type="email" class="form-control" id="email" name="email" required>
             </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Login</button>
-            <div class="text-center mt-3">
-                <a href="{{ route('forgot-password.form') }}">Forgot your password?</a>
-            </div>
+            <button type="submit" class="btn btn-primary btn-block">Send Password Reset Link</button>
         </form>
     </div>
 </body>

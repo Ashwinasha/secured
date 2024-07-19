@@ -11,6 +11,8 @@ use App\Models\PasswordResetCode;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
+
 
 class AuthController extends Controller
 {
@@ -24,7 +26,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $user = User::create([
@@ -36,36 +38,44 @@ class AuthController extends Controller
         // Send email verification code
         $this->sendVerificationCode($user);
 
-        return response()->json(['message' => 'User registered successfully. Please verify your email.'], 201);
+        return redirect()->route('login')->with('message', 'User registered successfully. Please verify your email.');
     }
 
     // Login
-    public function login(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
+    // app/Http/Controllers/AuthController.php
+public function login(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'email' => 'required|string|email',
+        'password' => 'required|string',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid login credentials'], 401);
-        }
-
-        return response()->json(['message' => 'Login successful'], 200);
+    if ($validator->fails()) {
+        return redirect()->back()->withErrors($validator)->withInput();
     }
+
+    $user = User::where('email', $request->email)->first();
+
+    if (!$user || !Hash::check($request->password, $user->password)) {
+        return redirect()->back()->withErrors(['message' => 'Invalid login credentials']);
+    }
+
+    if (!$user->email_verified_at) {
+        return redirect()->back()->withErrors(['message' => 'Please verify your email before logging in']);
+    }
+
+    Auth::login($user);
+    return redirect('/home')->with('message', 'Logged in successfully');
+}
+
 
     // Send Verification Code
     private function sendVerificationCode($user)
 {
-    $code = Str::random(32); // Use a longer random string for better security
-    EmailVerificationCode::create([
+    $code = Str::random(32);
+    EmailVerificationCode::updateOrCreate([
         'user_id' => $user->id,
+    ], [
         'code' => $code,
         'expires_at' => Carbon::now()->addMinutes(60),
     ]);
@@ -81,23 +91,31 @@ class AuthController extends Controller
 
     // Verify Email
     public function verifyEmail($code)
-{
-    $verificationCode = EmailVerificationCode::where('code', $code)
-        ->where('expires_at', '>', Carbon::now())
-        ->first();
+    {
+        $verificationCode = EmailVerificationCode::where('code', $code)
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
 
-    if (!$verificationCode) {
-        return redirect('/login')->withErrors(['message' => 'Invalid or expired verification link.']);
+        if (!$verificationCode) {
+            return redirect('/login')->withErrors(['message' => 'Invalid or expired verification link.']);
+        }
+
+        $user = $verificationCode->user;
+        $user->email_verified_at = Carbon::now();
+        $user->save();
+
+        $verificationCode->delete();
+
+        return redirect('/login')->with('message', 'Email verified successfully. You can now login.');
     }
 
-    $user = $verificationCode->user;
-    $user->email_verified_at = Carbon::now();
-    $user->save();
+    // Reset Password
+   
+    public function showForgotPasswordForm()
+    {
+        return view('auth.forgot-password');
+    }
 
-    $verificationCode->delete();
-
-    return redirect('/login')->with('message', 'Email verified successfully. You can now login.');
-}
 
 
     public function forgotPassword(Request $request)
@@ -107,60 +125,100 @@ class AuthController extends Controller
     ]);
 
     if ($validator->fails()) {
-        return response()->json($validator->errors(), 422);
+        return redirect()->back()->withErrors($validator)->withInput();
     }
 
     $user = User::where('email', $request->email)->first();
 
     if (!$user) {
-        return response()->json(['message' => 'User not found'], 404);
+        return redirect()->back()->withErrors(['message' => 'User not found']);
     }
 
     $code = Str::random(6);
     PasswordResetCode::create([
         'user_id' => $user->id,
         'code' => $code,
-        'expires_at' => Carbon::now()->addMinutes(60),
+        'expires_at' => now()->addMinutes(60),
     ]);
 
-    Mail::send('emails.password_reset', ['code' => $code, 'user' => $user], function ($message) use ($user) {
+    $resetLink = route('password.reset', ['code' => $code]);
+
+    Mail::send('emails.password_reset', ['resetLink' => $resetLink, 'user' => $user], function ($message) use ($user) {
         $message->to($user->email);
-        $message->subject('Password Reset Code');
+        $message->subject('Password Reset Request');
     });
 
-    return response()->json(['message' => 'Password reset code sent to your email'], 200);
+    return redirect()->route('login')->with('message', 'Password reset link sent to your email');
+}
+    // Reset Password
+    public function showResetPasswordForm($code)
+{
+    return view('auth.reset_password', ['code' => $code]);
+}
+
+    
+public function resetPassword(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'email' => 'required|string|email',
+        'code' => 'required|string',
+        'password' => 'required|string|min:8|confirmed',
+    ]);
+
+    if ($validator->fails()) {
+        return redirect()->back()->withErrors($validator)->withInput();
+    }
+
+    $reset = PasswordResetCode::where('code', $request->code)
+        ->where('expires_at', '>', now())
+        ->first();
+
+    if (!$reset) {
+        return redirect()->back()->withErrors(['message' => 'Invalid or expired reset code']);
+    }
+
+    $user = User::where('email', $request->email)->first();
+    if ($user->id !== $reset->user_id) {
+        return redirect()->back()->withErrors(['message' => 'Reset code does not match user']);
+    }
+
+    $user->password = Hash::make($request->password);
+    $user->save();
+
+    // Optionally, delete the reset code after successful password change
+    $reset->delete();
+
+    return redirect()->route('login')->with('message', 'Password reset successfully');
+}
+
+// AuthController.php
+
+public function resendVerification(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'email' => 'required|string|email',
+    ]);
+
+    if ($validator->fails()) {
+        return redirect()->back()->withErrors($validator)->withInput();
+    }
+
+    $user = User::where('email', $request->email)->first();
+
+    if (!$user) {
+        return redirect()->back()->withErrors(['email' => 'No user found with this email address.']);
+    }
+
+    if ($user->email_verified_at) {
+        return redirect()->back()->with('message', 'Email is already verified.');
+    }
+
+    // Send verification code again
+    $this->sendVerificationCode($user);
+
+    return redirect()->back()->with('message', 'Verification email resent. Please check your inbox.');
 }
 
 
-    // Reset Password
-    public function resetPassword(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email',
-            'code' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $reset = PasswordResetCode::where('code', $request->code)
-            ->where('expires_at', '>', Carbon::now())
-            ->first();
-
-        if (!$reset) {
-            return response()->json(['message' => 'Invalid or expired reset code'], 400);
-        }
-
-        $user = User::where('email', $request->email)->first();
-        if ($user->id !== $reset->user_id) {
-            return response()->json(['message' => 'Reset code does not match user'], 400);
-        }
-
-        $user->password = Hash::make($request->password);
-        $user->save();
-
-        return response()->json(['message' => 'Password reset successfully'], 200);
-    }
 }

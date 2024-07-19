@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login</title>
+    <title>Reset Password</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
@@ -22,12 +22,27 @@
 </head>
 <body>
     <div class="container">
-        <h2>Login</h2>
-        @if (session('message'))
-            <div class="alert alert-success">{{ session('message') }}</div>
-        @endif
+        <h2>Reset Password</h2>
+        <form action="{{ url('reset-password') }}" method="POST">
+            @csrf
+            <input type="hidden" name="code" value="{{ request()->code }}">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">New Password:</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="password_confirmation">Confirm Password:</label>
+                <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Reset Password</button>
+        </form>
+
         @if ($errors->any())
-            <div class="alert alert-danger">
+            <div class="alert alert-danger mt-3">
                 <ul>
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
@@ -35,21 +50,6 @@
                 </ul>
             </div>
         @endif
-        <form action="{{ route('login') }}" method="POST">
-            @csrf
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" class="form-control" id="email" name="email" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Login</button>
-            <div class="text-center mt-3">
-                <a href="{{ route('forgot-password.form') }}">Forgot your password?</a>
-            </div>
-        </form>
     </div>
 </body>
 </html>
