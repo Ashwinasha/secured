@@ -178,6 +178,11 @@ public function resetPassword(Request $request)
     }
 
     $user = User::where('email', $request->email)->first();
+
+    if (!$user) {
+        return redirect()->back()->withErrors(['message' => 'Email not found']);
+    }
+
     if ($user->id !== $reset->user_id) {
         return redirect()->back()->withErrors(['message' => 'Reset code does not match user']);
     }
