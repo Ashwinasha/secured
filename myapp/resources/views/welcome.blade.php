@@ -24,7 +24,7 @@
 <body>
     <div class="container text-center">
         <h1>Welcome to Your Application</h1>
-        <p class="lead">implemntation of secured registration and login system </p>
+        <p class="lead">implementation of secured registration and login system </p>
         <div class="mt-4">
             <a href="{{ route('login') }}" class="btn btn-primary mr-2">Login</a>
             <a href="{{ route('register') }}" class="btn btn-success">Register</a>
